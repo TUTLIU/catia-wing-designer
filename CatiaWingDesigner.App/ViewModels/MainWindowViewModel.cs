@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -15,21 +16,28 @@ namespace CatiaWingDesigner.App.ViewModels
         private WingDesign _design;
         private GeneratedWingGeometry? _geometry;
         private WingSegment? _selectedSegment;
+        private WingPlanformStation? _selectedPlanformStation;
+        private bool _suspendPlanformAutoRebuild;
         private string _statusText = "就绪";
 
         public MainWindowViewModel()
         {
             _design = WingDesign.CreateDefault();
             Segments = new ObservableCollection<WingSegment>(_design.Segments);
+            PlanformStations = new ObservableCollection<WingPlanformStation>(_design.PlanformStations);
+            AttachPlanformStationEvents(PlanformStations);
             RebuildCommand = new RelayCommand(RebuildPreview);
             AddSegmentCommand = new RelayCommand(AddSegment);
             RemoveSegmentCommand = new RelayCommand(RemoveSelectedSegment, () => SelectedSegment != null && Segments.Count > 1);
             InsertSegmentCommand = new RelayCommand(InsertSegment, () => SelectedSegment != null);
+            AddPlanformStationCommand = new RelayCommand(AddPlanformStation);
+            RemovePlanformStationCommand = new RelayCommand(RemoveSelectedPlanformStation, CanRemoveSelectedPlanformStation);
             FirstSectionCommand = new RelayCommand(SelectFirstSection, () => SelectedSegmentIndex > 0);
             PreviousSectionCommand = new RelayCommand(SelectPreviousSection, () => SelectedSegmentIndex > 0);
             NextSectionCommand = new RelayCommand(SelectNextSection, () => SelectedSegmentIndex >= 0 && SelectedSegmentIndex < Segments.Count - 1);
             LastSectionCommand = new RelayCommand(SelectLastSection, () => SelectedSegmentIndex >= 0 && SelectedSegmentIndex < Segments.Count - 1);
             SelectedSegment = Segments.Count > 0 ? Segments[0] : null;
+            SelectedPlanformStation = PlanformStations.Count > 0 ? PlanformStations[0] : null;
             RebuildPreview();
         }
 
@@ -49,10 +57,14 @@ namespace CatiaWingDesigner.App.ViewModels
                 OnPropertyChanged(nameof(GenerateTipCap));
                 OnPropertyChanged(nameof(ThickSurfaceThickness));
                 OnPropertyChanged(nameof(IsWingSurfaceClosed));
+                OnPropertyChanged(nameof(IsSegmentDrivenPlanform));
+                OnPropertyChanged(nameof(IsCustomEdgeSplinePlanform));
             }
         }
 
         public ObservableCollection<WingSegment> Segments { get; }
+
+        public ObservableCollection<WingPlanformStation> PlanformStations { get; }
 
         public WingSegment? SelectedSegment
         {
@@ -86,6 +98,22 @@ namespace CatiaWingDesigner.App.ViewModels
         }
 
         public string SectionPositionText => SelectedSegment == null ? "0 / 0" : $"{SelectedSegmentIndex + 1} / {Segments.Count}";
+
+        public WingPlanformStation? SelectedPlanformStation
+        {
+            get => _selectedPlanformStation;
+            set
+            {
+                if (ReferenceEquals(_selectedPlanformStation, value))
+                {
+                    return;
+                }
+
+                _selectedPlanformStation = value;
+                OnPropertyChanged();
+                RemovePlanformStationCommand.RaiseCanExecuteChanged();
+            }
+        }
 
         public GeneratedWingGeometry? Geometry
         {
@@ -162,6 +190,18 @@ namespace CatiaWingDesigner.App.ViewModels
 
         public bool IsWingSurfaceClosed => Design.GenerateRootCap && Design.GenerateTipCap;
 
+        public bool IsSegmentDrivenPlanform
+        {
+            get => Design.PlanformMode == WingPlanformMode.SegmentDriven;
+            set => SetPlanformModeIfChecked(value, WingPlanformMode.SegmentDriven);
+        }
+
+        public bool IsCustomEdgeSplinePlanform
+        {
+            get => Design.PlanformMode == WingPlanformMode.CustomEdgeSpline;
+            set => SetPlanformModeIfChecked(value, WingPlanformMode.CustomEdgeSpline);
+        }
+
         public string StatusText
         {
             get => _statusText;
@@ -192,6 +232,10 @@ namespace CatiaWingDesigner.App.ViewModels
         public RelayCommand RemoveSegmentCommand { get; }
 
         public RelayCommand InsertSegmentCommand { get; }
+
+        public RelayCommand AddPlanformStationCommand { get; }
+
+        public RelayCommand RemovePlanformStationCommand { get; }
 
         public RelayCommand FirstSectionCommand { get; }
 
@@ -404,7 +448,19 @@ namespace CatiaWingDesigner.App.ViewModels
                 Segments.Add(segment);
             }
 
+            _suspendPlanformAutoRebuild = true;
+            PlanformStations.Clear();
+            if (loaded.PlanformStations != null)
+            {
+                foreach (var station in loaded.PlanformStations)
+                {
+                    PlanformStations.Add(station);
+                }
+            }
+            _suspendPlanformAutoRebuild = false;
+
             SelectedSegment = Segments.Count > 0 ? Segments[0] : null;
+            SelectedPlanformStation = PlanformStations.Count > 0 ? PlanformStations[0] : null;
             RebuildPreview();
             StatusText = $"已加载 JSON：{Path.GetFileName(path)}";
         }
@@ -439,6 +495,49 @@ namespace CatiaWingDesigner.App.ViewModels
             SelectedSegment = segment;
             RaiseSectionCommandStates();
             RebuildPreview();
+        }
+
+        private void AddPlanformStation()
+        {
+            if (PlanformStations.Count < 2)
+            {
+                ResetPlanformStationsFromCurrentGeometry();
+                return;
+            }
+
+            var selectedIndex = SelectedPlanformStation == null ? PlanformStations.Count - 1 : PlanformStations.IndexOf(SelectedPlanformStation);
+            if (selectedIndex < 0)
+            {
+                selectedIndex = PlanformStations.Count - 1;
+            }
+
+            var insertIndex = selectedIndex + 1;
+            WingPlanformStation station;
+            if (insertIndex < PlanformStations.Count)
+            {
+                station = InterpolatePlanformStation(PlanformStations[insertIndex - 1], PlanformStations[insertIndex], insertIndex + 1);
+            }
+            else
+            {
+                station = ExtrapolatePlanformStation(PlanformStations[PlanformStations.Count - 2], PlanformStations[PlanformStations.Count - 1], insertIndex + 1);
+            }
+
+            PlanformStations.Insert(insertIndex, station);
+            SelectedPlanformStation = station;
+            RemovePlanformStationCommand.RaiseCanExecuteChanged();
+        }
+
+        private void RemoveSelectedPlanformStation()
+        {
+            if (!CanRemoveSelectedPlanformStation())
+            {
+                return;
+            }
+
+            var oldIndex = PlanformStations.IndexOf(SelectedPlanformStation!);
+            PlanformStations.Remove(SelectedPlanformStation!);
+            SelectedPlanformStation = PlanformStations[Math.Min(oldIndex, PlanformStations.Count - 1)];
+            RemovePlanformStationCommand.RaiseCanExecuteChanged();
         }
 
         private WingSegment CreateNewSegment(int number, WingSegment? template)
@@ -498,6 +597,12 @@ namespace CatiaWingDesigner.App.ViewModels
             foreach (var segment in Segments)
             {
                 Design.Segments.Add(segment);
+            }
+
+            Design.PlanformStations.Clear();
+            foreach (var station in PlanformStations)
+            {
+                Design.PlanformStations.Add(station);
             }
         }
 
@@ -568,6 +673,164 @@ namespace CatiaWingDesigner.App.ViewModels
             OnPropertyChanged(nameof(IsAverageChordActive));
             OnPropertyChanged(nameof(IsTipChordActive));
             OnPropertyChanged(nameof(IsSweepActive));
+        }
+
+        private void SetPlanformModeIfChecked(bool isChecked, WingPlanformMode mode)
+        {
+            if (!isChecked || Design.PlanformMode == mode)
+            {
+                return;
+            }
+
+            if (mode == WingPlanformMode.CustomEdgeSpline && PlanformStations.Count < 3)
+            {
+                ResetPlanformStationsFromCurrentGeometry();
+            }
+
+            Design.PlanformMode = mode;
+            OnPropertyChanged(nameof(IsSegmentDrivenPlanform));
+            OnPropertyChanged(nameof(IsCustomEdgeSplinePlanform));
+            TryRebuildPreviewFromPlanformChange();
+        }
+
+        private void AttachPlanformStationEvents(ObservableCollection<WingPlanformStation> stations)
+        {
+            stations.CollectionChanged += OnPlanformStationsCollectionChanged;
+            foreach (var station in stations)
+            {
+                station.PropertyChanged += OnPlanformStationPropertyChanged;
+            }
+        }
+
+        private void OnPlanformStationsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
+        {
+            if (args.OldItems != null)
+            {
+                foreach (WingPlanformStation station in args.OldItems)
+                {
+                    station.PropertyChanged -= OnPlanformStationPropertyChanged;
+                }
+            }
+
+            if (args.NewItems != null)
+            {
+                foreach (WingPlanformStation station in args.NewItems)
+                {
+                    station.PropertyChanged += OnPlanformStationPropertyChanged;
+                }
+            }
+
+            RemovePlanformStationCommand.RaiseCanExecuteChanged();
+            TryRebuildPreviewFromPlanformChange();
+        }
+
+        private void OnPlanformStationPropertyChanged(object? sender, PropertyChangedEventArgs args)
+        {
+            TryRebuildPreviewFromPlanformChange();
+        }
+
+        private void TryRebuildPreviewFromPlanformChange()
+        {
+            if (_suspendPlanformAutoRebuild || Design.PlanformMode != WingPlanformMode.CustomEdgeSpline)
+            {
+                return;
+            }
+
+            try
+            {
+                RebuildPreview();
+            }
+            catch (Exception ex)
+            {
+                StatusText = ex.Message;
+            }
+        }
+
+        private bool CanRemoveSelectedPlanformStation()
+        {
+            if (SelectedPlanformStation == null || PlanformStations.Count <= 3)
+            {
+                return false;
+            }
+
+            return PlanformStations.IndexOf(SelectedPlanformStation) > 0;
+        }
+
+        private void ResetPlanformStationsFromCurrentGeometry()
+        {
+            var sourceGeometry = Geometry;
+            if (sourceGeometry == null || sourceGeometry.Sections.Count < 3)
+            {
+                var previousMode = Design.PlanformMode;
+                Design.PlanformMode = WingPlanformMode.SegmentDriven;
+                sourceGeometry = _geometryBuilder.Build(Design);
+                Design.PlanformMode = previousMode;
+            }
+
+            PlanformStations.Clear();
+            for (var i = 0; i < sourceGeometry.Sections.Count; i++)
+            {
+                var section = sourceGeometry.Sections[i];
+                var trailing = GetTrailingEdgeMidPointX(section);
+                var dihedral = i == 0
+                    ? 0.0
+                    : RadiansToDegrees(Math.Atan2(
+                        section.LeadingEdge.Z - sourceGeometry.Sections[i - 1].LeadingEdge.Z,
+                        section.LeadingEdge.Y - sourceGeometry.Sections[i - 1].LeadingEdge.Y));
+
+                PlanformStations.Add(new WingPlanformStation
+                {
+                    Name = i == 0 ? "Root" : $"Station_{i:00}",
+                    SpanY = section.LeadingEdge.Y,
+                    LeadingEdgeX = section.LeadingEdge.X,
+                    TrailingEdgeX = trailing,
+                    TwistDeg = section.TwistDeg,
+                    DihedralDegFromPrevious = dihedral,
+                    Airfoil = section.Airfoil.Clone()
+                });
+            }
+
+            SelectedPlanformStation = PlanformStations.Count > 0 ? PlanformStations[0] : null;
+        }
+
+        private static double GetTrailingEdgeMidPointX(WingSection section)
+        {
+            var upperTrailing = section.UpperRawPoints[section.UpperRawPoints.Count - 1];
+            var lowerTrailing = section.LowerRawPoints[section.LowerRawPoints.Count - 1];
+            return (upperTrailing.X + lowerTrailing.X) * 0.5;
+        }
+
+        private static WingPlanformStation InterpolatePlanformStation(WingPlanformStation first, WingPlanformStation second, int number)
+        {
+            return new WingPlanformStation
+            {
+                Name = $"Station_{number:00}",
+                SpanY = (first.SpanY + second.SpanY) * 0.5,
+                LeadingEdgeX = (first.LeadingEdgeX + second.LeadingEdgeX) * 0.5,
+                TrailingEdgeX = (first.TrailingEdgeX + second.TrailingEdgeX) * 0.5,
+                TwistDeg = (first.TwistDeg + second.TwistDeg) * 0.5,
+                DihedralDegFromPrevious = second.DihedralDegFromPrevious,
+                Airfoil = second.Airfoil.Clone()
+            };
+        }
+
+        private static WingPlanformStation ExtrapolatePlanformStation(WingPlanformStation previous, WingPlanformStation last, int number)
+        {
+            return new WingPlanformStation
+            {
+                Name = $"Station_{number:00}",
+                SpanY = last.SpanY + Math.Max(100.0, last.SpanY - previous.SpanY),
+                LeadingEdgeX = last.LeadingEdgeX + (last.LeadingEdgeX - previous.LeadingEdgeX),
+                TrailingEdgeX = last.TrailingEdgeX + (last.TrailingEdgeX - previous.TrailingEdgeX),
+                TwistDeg = last.TwistDeg,
+                DihedralDegFromPrevious = last.DihedralDegFromPrevious,
+                Airfoil = last.Airfoil.Clone()
+            };
+        }
+
+        private static double RadiansToDegrees(double radians)
+        {
+            return radians * 180.0 / Math.PI;
         }
 
         private void RaiseSectionCommandStates()

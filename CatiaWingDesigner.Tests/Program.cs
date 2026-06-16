@@ -12,6 +12,7 @@ TestDriverGroups();
 TestInvalidParameters();
 TestAirfoils();
 TestGeometryAndJson();
+TestCustomEdgeSplinePlanform();
 
 Console.WriteLine("All tests passed.");
 
@@ -140,6 +141,47 @@ void TestGeometryAndJson()
     Assert(loaded.Segments.Count == design.Segments.Count, "JSON 载入翼段数不一致");
 }
 
+void TestCustomEdgeSplinePlanform()
+{
+    var design = WingDesign.CreateDefault();
+    design.PlanformMode = WingPlanformMode.CustomEdgeSpline;
+
+    var geometry = geometryBuilder.Build(design);
+    Assert(geometry.PlanformMode == WingPlanformMode.CustomEdgeSpline, "自定义前后缘模式未写入生成几何");
+    Assert(geometry.Sections.Count == design.PlanformStations.Count, "自定义前后缘站位数与截面数不一致");
+    AssertPositive(geometry.HalfArea, "Custom HalfArea");
+
+    for (var i = 0; i < geometry.Sections.Count; i++)
+    {
+        var section = geometry.Sections[i];
+        var station = design.PlanformStations[i];
+        AssertClose(section.LeadingEdge.X, station.LeadingEdgeX, $"站位 {i + 1} 前缘 X 不一致");
+        AssertClose(section.LeadingEdge.Y, station.SpanY, $"站位 {i + 1} SpanY 不一致");
+        AssertClose(GetTrailingEdgeMidPointX(section), station.TrailingEdgeX, $"站位 {i + 1} 后缘投影 X 不一致");
+    }
+
+    var jsonPath = Path.Combine(Path.GetTempPath(), "catia_wing_custom_planform.json");
+    serializer.Save(design, jsonPath);
+    var loaded = serializer.Load(jsonPath);
+    Assert(loaded.PlanformMode == WingPlanformMode.CustomEdgeSpline, "自定义前后缘模式 JSON 载入失败");
+    Assert(loaded.PlanformStations.Count == design.PlanformStations.Count, "自定义前后缘站位 JSON 载入失败");
+
+    var invalid = WingDesign.CreateDefault();
+    invalid.PlanformMode = WingPlanformMode.CustomEdgeSpline;
+    invalid.PlanformStations[1].SpanY = invalid.PlanformStations[0].SpanY;
+    ExpectFailure(() => geometryBuilder.Build(invalid), "自定义前后缘 SpanY 非递增必须失败");
+
+    invalid = WingDesign.CreateDefault();
+    invalid.PlanformMode = WingPlanformMode.CustomEdgeSpline;
+    invalid.PlanformStations[0].LeadingEdgeX = 10.0;
+    ExpectFailure(() => geometryBuilder.Build(invalid), "自定义前后缘根站前缘非原点必须失败");
+
+    invalid = WingDesign.CreateDefault();
+    invalid.PlanformMode = WingPlanformMode.CustomEdgeSpline;
+    invalid.PlanformStations.RemoveAt(2);
+    ExpectFailure(() => geometryBuilder.Build(invalid), "自定义前后缘少于 3 个站位必须失败");
+}
+
 void AssertPositive(double value, string name)
 {
     Assert(value > 0.0 && !double.IsNaN(value) && !double.IsInfinity(value), $"{name} 必须为正数");
@@ -161,6 +203,13 @@ void AssertAirfoilXRange(AirfoilCurve curve, string label)
 void AssertClose(double actual, double expected, string message)
 {
     Assert(Math.Abs(actual - expected) < 1e-8, message);
+}
+
+double GetTrailingEdgeMidPointX(WingSection section)
+{
+    var upperTrailing = section.UpperRawPoints[^1];
+    var lowerTrailing = section.LowerRawPoints[^1];
+    return (upperTrailing.X + lowerTrailing.X) * 0.5;
 }
 
 void Assert(bool condition, string message)

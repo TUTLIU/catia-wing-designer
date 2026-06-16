@@ -5,6 +5,8 @@ namespace CatiaWingDesigner.Core.Model
 {
     public sealed class GeneratedWingGeometry
     {
+        public WingPlanformMode PlanformMode { get; set; } = WingPlanformMode.SegmentDriven;
+
         public List<WingSection> Sections { get; } = new List<WingSection>();
 
         public List<WingSegmentSolution> SegmentSolutions { get; } = new List<WingSegmentSolution>();

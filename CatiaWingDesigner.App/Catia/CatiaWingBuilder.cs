@@ -85,8 +85,9 @@ namespace CatiaWingDesigner.App.Catia
                 }
 
                 _currentStep = "创建前缘和后缘导线";
-                var leadingEdge = CreateGuideCurve(part, factory, wingBody, GetLeadingEdgeGuidePoints(geometry), "LeadingEdge_Guide");
-                var trailingEdge = CreateGuideCurve(part, factory, wingBody, GetTrailingEdgeMidPoints(geometry), "TrailingEdge_Guide");
+                var useCustomEdgeSplines = geometry.PlanformMode == WingPlanformMode.CustomEdgeSpline;
+                var leadingEdge = CreateGuideCurve(part, factory, wingBody, GetLeadingEdgeGuidePoints(geometry), "LeadingEdge_Guide", useCustomEdgeSplines);
+                var trailingEdge = CreateGuideCurve(part, factory, wingBody, GetTrailingEdgeMidPoints(geometry), "TrailingEdge_Guide", useCustomEdgeSplines);
                 _currentStep = "创建前缘导线引用";
                 var leadingRef = part.CreateReferenceFromObject(leadingEdge);
                 _currentStep = "创建后缘导线引用";
@@ -318,7 +319,7 @@ namespace CatiaWingDesigner.App.Catia
             parameters.CreateString("ProjectName", design.ProjectName);
 
             _currentStep = "记录参数 RootChord";
-            parameters.CreateDimension("RootChord", "LENGTH", design.RootChord);
+            parameters.CreateDimension("RootChord", "LENGTH", geometry.Sections.Count == 0 ? design.RootChord : geometry.Sections[0].Chord);
 
             _currentStep = "记录参数 HalfSpan";
             parameters.CreateDimension("HalfSpan", "LENGTH", geometry.HalfSpan);
@@ -510,11 +511,16 @@ namespace CatiaWingDesigner.App.Catia
             return spline;
         }
 
-        private AnyObject CreateGuideCurve(Part part, HybridShapeFactory factory, HybridBody body, System.Collections.Generic.IReadOnlyList<Point3DValue> guidePoints, string name)
+        private AnyObject CreateGuideCurve(Part part, HybridShapeFactory factory, HybridBody body, System.Collections.Generic.IReadOnlyList<Point3DValue> guidePoints, string name, bool createSpline)
         {
             if (guidePoints.Count < 2)
             {
                 throw new InvalidOperationException("导线至少需要 2 个点。");
+            }
+
+            if (createSpline && guidePoints.Count < 3)
+            {
+                throw new InvalidOperationException("自定义前后缘样条导线至少需要 3 个点。");
             }
 
             var pointRefs = new System.Collections.Generic.List<Reference>(guidePoints.Count);
@@ -523,6 +529,30 @@ namespace CatiaWingDesigner.App.Catia
                 var point = CreatePoint(factory, body, guidePoints[i], $"{name}_P{i:000}");
                 _currentStep = $"创建导线 {name} 第 {i + 1} 个点引用";
                 pointRefs.Add(part.CreateReferenceFromObject(point));
+            }
+
+            if (createSpline)
+            {
+                _currentStep = $"创建导线样条 {name}";
+                HybridShapeSpline spline = factory.AddNewSpline();
+
+                _currentStep = $"设置导线样条 {name} 类型";
+                spline.SetSplineType(0);
+                spline.SetClosing(0);
+
+                for (var i = 0; i < pointRefs.Count; i++)
+                {
+                    _currentStep = $"向导线样条 {name} 添加第 {i + 1} 个控制点";
+                    spline.AddPointWithConstraintExplicit(pointRefs[i], null, -1, 1, null, 0);
+                }
+
+                _currentStep = $"命名导线样条 {name}";
+                spline.set_Name(name);
+
+                _currentStep = $"追加导线样条 {name} 到特征树";
+                body.AppendHybridShape(spline);
+                UpdateObject(part, spline, $"更新导线样条 {name}");
+                return spline;
             }
 
             if (pointRefs.Count == 2)

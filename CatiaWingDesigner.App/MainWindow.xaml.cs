@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -23,7 +24,16 @@ namespace CatiaWingDesigner.App
             InitializeComponent();
             _viewModel = new MainWindowViewModel();
             DataContext = _viewModel;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             RenderPreview(_viewModel.Geometry);
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainWindowViewModel.Geometry))
+            {
+                RenderPreview(_viewModel.Geometry);
+            }
         }
 
         private void OnRebuildPreview(object sender, RoutedEventArgs e)
