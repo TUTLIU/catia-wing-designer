@@ -32,7 +32,6 @@ CatiaWingDesigner.App/      WPF 界面、三维预览、CATIA COM 自动建模
 CatiaWingDesigner.Tests/    控制台回归测试
 installer/                  安装与卸载脚本
 tools/                      安装包生成脚本
-docs/                       项目说明、进展记录和课程报告材料
 Libs/Interop/               CATIA 互操作程序集留档
 ```
 

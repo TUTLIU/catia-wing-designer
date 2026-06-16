@@ -23,6 +23,8 @@ TestResults/
 # Codex / local scratch files
 .localappdata/
 .codex_tmp_*
+AGENTS.md
+docs/
 
 # Runtime logs
 *.log
