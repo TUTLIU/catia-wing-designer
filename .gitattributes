@@ -1,0 +1,19 @@
+* text=auto
+
+*.cs text
+*.xaml text
+*.csproj text
+*.sln text
+*.config text
+*.md text
+*.json text
+*.dat text
+*.gitignore text
+
+*.dll binary
+*.CATPart binary
+*.CATProduct binary
+*.CATDrawing binary
+*.png binary
+*.jpg binary
+*.jpeg binary

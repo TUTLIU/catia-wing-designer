@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatiaWingDesigner.Tests", "CatiaWingDesigner.Tests\CatiaWingDesigner.Tests.csproj", "{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatiaWingDesigner.Core", "CatiaWingDesigner.Core\CatiaWingDesigner.Core.csproj", "{2C097290-8BE5-40E5-BD7A-956243EEF02B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CatiaWingDesigner.App", "CatiaWingDesigner.App\CatiaWingDesigner.App.csproj", "{BC059B93-A203-48F6-9F2D-E51161657D00}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Debug|x64.ActiveCfg = Debug|x64
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Debug|x64.Build.0 = Debug|x64
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Release|x64.ActiveCfg = Release|x64
+		{5D2CAF44-D01E-43C6-AD42-FE52C9FE0C54}.Release|x64.Build.0 = Release|x64
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Debug|x64.ActiveCfg = Debug|x64
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Debug|x64.Build.0 = Debug|x64
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Release|x64.ActiveCfg = Release|x64
+		{2C097290-8BE5-40E5-BD7A-956243EEF02B}.Release|x64.Build.0 = Release|x64
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Debug|x64.ActiveCfg = Debug|x64
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Debug|x64.Build.0 = Debug|x64
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Release|x64.ActiveCfg = Release|x64
+		{BC059B93-A203-48F6-9F2D-E51161657D00}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

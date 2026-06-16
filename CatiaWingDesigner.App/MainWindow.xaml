@@ -1,0 +1,351 @@
+<Window x:Class="CatiaWingDesigner.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:h="http://helix-toolkit.org/wpf"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="CATIA Wing Designer" Height="820" Width="1360" MinHeight="760" MinWidth="1180"
+        Background="#F4F5F7">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#263238" Padding="12,8">
+            <DockPanel>
+                <TextBlock Text="CATIA Wing Designer" Foreground="White" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="更新预览" Click="OnRebuildPreview" Margin="6,0,0,0" Padding="12,5" />
+                    <Button Content="保存 JSON" Click="OnSaveJson" Margin="6,0,0,0" Padding="12,5" />
+                    <Button Content="加载 JSON" Click="OnLoadJson" Margin="6,0,0,0" Padding="12,5" />
+                    <TextBlock Text="加厚 mm" Foreground="White" VerticalAlignment="Center" Margin="14,0,4,0" />
+                    <TextBox Text="{Binding ThickSurfaceThickness, UpdateSourceTrigger=PropertyChanged}" Width="58" Margin="0,0,2,0" VerticalContentAlignment="Center" />
+                    <Button Content="生成曲面" Click="OnBuildCatiaSurface" Margin="6,0,0,0" Padding="12,5" />
+                    <Button Content="封闭曲面实体" Click="OnBuildCatiaClosedSolid" IsEnabled="{Binding IsWingSurfaceClosed}" Margin="6,0,0,0" Padding="12,5" />
+                    <Button Content="加厚曲面实体" Click="OnBuildCatiaThickSolid" Margin="6,0,0,0" Padding="12,5" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <StatusBar DockPanel.Dock="Bottom">
+            <TextBlock Text="{Binding StatusText}" />
+        </StatusBar>
+
+        <Grid Margin="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="480" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <GroupBox Header="全局参数" Padding="10" Margin="0,0,10,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="110" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" VerticalAlignment="Center" Margin="0,0,8,6">
+                            <TextBlock Text="项目名" FontWeight="SemiBold" />
+                            <TextBlock Text="Project Name" FontSize="10" Foreground="#66727A" />
+                        </StackPanel>
+                        <TextBox Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" />
+
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,0,8,6">
+                            <TextBlock Text="根弦 mm" FontWeight="SemiBold" />
+                            <TextBlock Text="Root Chord" FontSize="10" Foreground="#66727A" />
+                        </StackPanel>
+                        <TextBox Text="{Binding RootChord, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" Margin="0,0,0,6" />
+
+                        <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="0,0,8,6">
+                            <TextBlock Text="根部翼型" FontWeight="SemiBold" />
+                            <TextBlock Text="Root Airfoil" FontSize="10" Foreground="#66727A" />
+                        </StackPanel>
+                        <TextBox Text="{Binding RootAirfoilCode, UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="1" Margin="0,0,0,6" />
+
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,2,0,0">
+                            <CheckBox IsChecked="{Binding GenerateRootCap}" Margin="0,0,18,0">
+                                <StackPanel>
+                                    <TextBlock Text="根部端面" />
+                                    <TextBlock Text="Root Cap" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox IsChecked="{Binding GenerateTipCap}">
+                                <StackPanel>
+                                    <TextBlock Text="翼尖端面" />
+                                    <TextBlock Text="Tip Cap" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                            </CheckBox>
+                        </StackPanel>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="翼段设计 / Wing Section" Grid.Row="1" Padding="8" Margin="0,0,10,10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,0,0,6">
+                                <TextBlock Text="翼段选择 / Wing Section" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="56" />
+                                </Grid.ColumnDefinitions>
+                                <Button Content="&lt;&lt;" Command="{Binding FirstSectionCommand}" Margin="0,0,4,0" />
+                                <Button Grid.Column="1" Content="&lt;" Command="{Binding PreviousSectionCommand}" Margin="0,0,4,0" />
+                                <Border Grid.Column="2" BorderBrush="#B8BDC2" BorderThickness="1" Background="White" Padding="6,3">
+                                    <TextBlock Text="{Binding SectionPositionText}" TextAlignment="Center" FontWeight="SemiBold" />
+                                </Border>
+                                <Button Grid.Column="3" Content="&gt;" Command="{Binding NextSectionCommand}" Margin="4,0,0,0" />
+                                <Button Grid.Column="4" Content="&gt;&gt;" Command="{Binding LastSectionCommand}" Margin="4,0,0,0" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Content="添加&#x0a;Add" Command="{Binding AddSegmentCommand}" Padding="8,4" Margin="0,0,4,0" />
+                                <Button Grid.Column="1" Content="插入&#x0a;Insert" Command="{Binding InsertSegmentCommand}" Padding="8,4" Margin="4,0" />
+                                <Button Grid.Column="2" Content="删除&#x0a;Delete" Command="{Binding RemoveSegmentCommand}" Padding="8,4" Margin="4,0,0,0" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,8,6">
+                                    <TextBlock Text="翼段名称" FontWeight="SemiBold" />
+                                    <TextBlock Text="Section Alias" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Column="1" Text="{Binding SegmentName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
+                            </Grid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="驱动组合 / Driver Set" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <UniformGrid Columns="1" Margin="2,0,2,8">
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsSpanTipChordSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="展长 + 尖弦 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Span + Tip Chord + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsSpanTaperSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="展长 + 梢根比 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Span + Taper + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsSpanAreaSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="展长 + 面积 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Span + Area + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsSpanAspectRatioSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="展长 + 展弦比 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Span + Aspect Ratio + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsAreaAspectRatioSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="面积 + 展弦比 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Area + Aspect Ratio + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsSpanAverageChordSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="展长 + 平均弦长 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Span + Average Chord + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="DriverGroup" IsChecked="{Binding IsAreaTaperSweep}" Focusable="False" IsTabStop="False" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="面积 + 梢根比 + 后掠" FontWeight="SemiBold" />
+                                        <TextBlock Text=" / Area + Taper + Sweep" Foreground="#66727A" />
+                                    </StackPanel>
+                                </RadioButton>
+                            </UniformGrid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="翼段平面形 / Section Planform" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <RadioButton Grid.Row="0" IsChecked="{Binding IsAspectRatioActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="展弦比" FontWeight="SemiBold" />
+                                    <TextBlock Text="Aspect Ratio" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding SegmentAspectRatio, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAspectRatioActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="1" IsChecked="{Binding IsSpanActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="展长 mm" FontWeight="SemiBold" />
+                                    <TextBlock Text="Span" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SegmentSpan, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsSpanActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="2" IsChecked="{Binding IsAreaActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="面积 mm²" FontWeight="SemiBold" />
+                                    <TextBlock Text="Area" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding SegmentArea, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAreaActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="3" IsChecked="{Binding IsTaperActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="梢根比" FontWeight="SemiBold" />
+                                    <TextBlock Text="Taper" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding SegmentTaper, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsTaperActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="4" IsChecked="{Binding IsAverageChordActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="平均弦长 mm" FontWeight="SemiBold" />
+                                    <TextBlock Text="Average Chord" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding SegmentAverageChord, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAverageChordActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="5" IsChecked="False" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="根弦 mm" FontWeight="SemiBold" />
+                                    <TextBlock Text="Root Chord" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="5" Grid.Column="2" Text="{Binding SegmentRootChord, Mode=OneWay}" IsReadOnly="True" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="6" IsChecked="{Binding IsTipChordActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="6" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="尖弦 mm" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tip Chord" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="6" Grid.Column="2" Text="{Binding SegmentTipChord, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsTipChordActive}" Margin="0,0,0,6" />
+                            </Grid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="后掠 / Sweep" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <RadioButton Grid.Row="0" IsChecked="{Binding IsSweepActive, Mode=OneWay}" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="后掠角 deg" FontWeight="SemiBold" />
+                                    <TextBlock Text="Sweep" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding SegmentSweepDeg, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsSweepActive}" Margin="0,0,0,6" />
+
+                                <RadioButton Grid.Row="1" IsChecked="False" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="后掠位置" FontWeight="SemiBold" />
+                                    <TextBlock Text="Sweep Location" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SegmentSweepLocation, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
+                            </Grid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="扭转 / Twist" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton IsChecked="False" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="翼尖扭转 deg" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tip Twist" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Column="2" Text="{Binding SegmentTwistDeg, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
+                            </Grid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="上反 / Dihedral" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton IsChecked="False" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="翼尖上反 deg" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tip Dihedral" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Column="2" Text="{Binding SegmentDihedralDeg, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
+                            </Grid>
+
+                            <Border Background="#5951A8" Padding="8,4" Margin="0,2,0,6">
+                                <TextBlock Text="翼型 / Airfoil" Foreground="White" FontWeight="SemiBold" TextAlignment="Center" />
+                            </Border>
+                            <Grid Margin="0,0,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="132" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton IsChecked="False" IsHitTestVisible="False" Focusable="False" IsTabStop="False" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Margin="0,0,8,6">
+                                    <TextBlock Text="翼尖翼型" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tip Airfoil" FontSize="10" Foreground="#66727A" />
+                                </StackPanel>
+                                <TextBox Grid.Column="2" Text="{Binding SegmentTipAirfoilCode, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </GroupBox>
+
+                <Border Grid.Row="2" Background="White" BorderBrush="#CCD1D5" BorderThickness="1" Padding="10" Margin="0,0,10,0">
+                    <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" />
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="1" Background="White" BorderBrush="#CCD1D5" BorderThickness="1">
+                <h:HelixViewport3D x:Name="Viewport" ShowFrameRate="False" ZoomExtentsWhenLoaded="True" Background="#FFFFFF">
+                    <h:SunLight />
+                    <h:CoordinateSystemVisual3D ArrowLengths="180" />
+                </h:HelixViewport3D>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

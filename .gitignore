@@ -1,0 +1,35 @@
+# Visual Studio / MSBuild
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local .NET / NuGet caches
+.dotnet_home/
+.nuget/
+packages/
+
+# Test and build check outputs
+.buildcheck/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Codex / local scratch files
+.localappdata/
+.codex_tmp_*
+
+# Runtime logs
+*.log
+
+# CATIA generated output files
+*.CATPart
+*.CATProduct
+*.CATDrawing
+
+# User-generated sample/export folders
+test3Doutput/
